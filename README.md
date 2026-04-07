@@ -1,3 +1,13 @@
+---
+title: PrivRL
+emoji: 🛡️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_file: app.py
+pinned: false
+---
+
 # PrivRL — Multi-Step Privacy Risk Classification Environment
 
 A rigorous, OpenEnv-compatible reinforcement learning environment designed to evaluate AI agents on privacy risk assessment and decision-making under partial observability.
