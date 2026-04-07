@@ -8,63 +8,63 @@ app_file: app.py
 pinned: false
 ---
 
+
 # PrivRL — Multi-Step Privacy Risk Classification Environment
 
-A rigorous, OpenEnv-compatible reinforcement learning environment designed to evaluate AI agents on privacy risk assessment and decision-making under partial observability.
+A rigorous, OpenEnv-compliant reinforcement learning environment designed to evaluate AI agents on privacy risk assessment and decision-making under partial observability. 
 
 ## Problem Statement
 
-Modern websites deploy diverse, often opaque data collection practices. Identifying high-risk privacy violations—such as aggressive third-party trackers, insecure connections, and deceptive data policies—requires aggregating multiple disparate signals. Automating this synthesis is critical for scalable web oversight and user protection. However, assessing these signals is rarely a single-step classification problem; it requires gathering information selectively, inferring intent from text, and quantifying cumulative risk.
+Modern websites deploy diverse, often opaque data collection practices. Identifying high-risk privacy violations—such as aggressive third-party trackers, insecure connections, and deceptive data policies—requires aggregating multiple disparate signals. Automating this synthesis is critical for scalable web oversight and user protection.
+
+Current approaches often rely on brittle, rules-based keyword blocking. PrivRL transforms privacy classification into an RL challenge, pushing agents to navigate ambiguity, weigh contradictory terms, and optimize for long-term interpretability and accuracy.
 
 ## Solution Overview
 
-PrivRL provides a structured reinforcement learning benchmark where agents must classify simulated website environments into discrete risk categories ("safe", "risky", or "dangerous"). By framing privacy analysis as an RL problem, PrivRL allows researchers to train agents capable of navigating complex, ambiguous, or deceptive privacy architectures, moving beyond simple keyword blocking to true semantic risk evaluation.
+PrivRL is a structured reinforcement learning benchmark where agents classify simulated website environments into discrete risk categories ("safe", "risky", or "dangerous"). By framing privacy analysis as an RL problem, PrivRL allows researchers to train agents capable of navigating complex or deceptive privacy architectures, moving beyond simple keyword blocking to true semantic risk evaluation.
 
 ## Key Features
 
-*   **OpenEnv Compliant API**: Fully supports the standardized REST and WebSocket endpoints for seamless integration with Hackathon validation and external RL frameworks.
-*   **Procedural Site Generation**: Generates varied privacy policies, tracker distributions, and cookie counts programmatically to prevent simple memorization and force generalized learning.
-*   **Weighted Deception Modeling**: Employs a nuanced text-scoring heuristic that amplifies deceptive contradictions (e.g., safe language wrapping dangerous data-sharing terms).
-*   **Action Tracking and Fallbacks**: Complete safety mechanisms including step constraints and deterministic seed support to allow 100% reproducible episodes.
+*   **OpenEnv Compliant API**: Fully supports standardized REST endpoints for seamless hackathon validation and infrastructure integration.
+*   **Procedural Site Generation**: Generates varied privacy policies, tracker distributions, and cookie counts programmatically to prevent memorization and enforce generalized learning.
+*   **Deception Model v2**: Features a contradiction-aware algorithmic scorer using weighted phrasing and density normalization to identify when "safe" terminology masks dangerous data-sharing clauses.
+*   **Vector Observations**: Serves a cleanly normalized 13-dimensional float array natively supporting advanced DQN, PPO, and standard RL policy algorithms.
+*   **Live LLM Inference Insights**: Augments baseline decision steps with an integrated semantic advisor powered by OpenRouter for dynamic, real-time context.
 
-## Evaluation Criteria Alignment
+## Architecture
 
-This project is designed to align closely with common evaluation metrics:
+The system segregates responsibilities across clean layer boundaries:
+*   **API Layer**: A FastAPI + Uvicorn server providing the `/reset`, `/step`, `/state`, and `/health` interfaces.
+*   **Environment Layer**: The `PrivRLEnv` engine governing state transitions, rewards, dataset generation, and observation masking.
+*   **Model Layer**: Pydantic dataclasses (`models.py`) strictly enforcing the data contract across boundaries.
+*   **Inference Layer**: The client application executing decisions against the active environment state and interfacing with external LLMs for advisory reporting.
 
-- **Correctness**: Strict adherence to OpenEnv API and deterministic inference behavior
-- **Robustness**: Handles invalid inputs, enforces method constraints, and avoids runtime failures
-- **Reproducibility**: Fixed seeds ensure identical execution traces across runs
-- **Generalization**: Procedural generation prevents memorization and encourages pattern-based reasoning
+## RL Formulation
 
+*   **State / Observation**: A Partially Observable Markov Decision Process (POMDP). The visible state includes HTTPS toggles, integer cookie loads, text snippets from privacy policies, and arrays of third-party domains.
+*   **Actions**: The action space accepts discrete risk classifications:
+    *   `mark_safe`
+    *   `mark_risky`
+    *   `mark_dangerous`
+*   **Reward Design**: Rewards are shaped based purely on correctness versus underlying algorithmic truth, penalizing over/under-reactions strictly while maintaining boundary thresholds that allow continuous learning.
 
-## Environment Design
+## LLM Integration
 
-The environment exposes a web ecosystem snapshot per site:
-*   **Observations**: Readouts of current session state, prominently including active cookies, detected third-party trackers, connection security protocols (HTTPS), and segments of the site's privacy policy.
-*   **Actions**: The action space accepts risk classifications (`mark_safe`, `mark_risky`, `mark_dangerous`).
-*   **Reward Design Intuition**: Rewards are strictly shaped based on ground-truth severity. Classifying deceptive policies or severe algorithmic trackers correctly yields higher normalized rewards, while misclassifications strictly penalize the running total.
+The provided baseline inference agent features a non-blocking OpenAI-compatible client routed through OpenRouter (`openai/gpt-4o-mini`). 
+*   **Role**: Acts as a "Privacy Advisor AI" executing on the exact observation matrix consumed by the RL agent. 
+*   **Execution**: Generates short, 2-sentence rationale advisories concurrent with the discrete action decisions. 
+*   **Safety**: Runs strictly functionally separate from the reward loop. If the API fails, rates-limits, or times out, the system natively catches the exception and outputs static, contextual fallbacks corresponding to the chosen baseline action.
 
-## Multi-Step Reasoning and Partial Observability
-
-While the standardized API enforces terminal classification actions, the core challenge of PrivRL lies in navigating partial observability and complex decision boundaries. Real-world privacy oversight is an investigatory, multi-step process. In PrivRL, agents inherently act as decision-makers operating under ambiguity. The signals provided in the environment (e.g., hidden policy clauses, varied domain trackers) demand that an agent build an accurate latent representation of the site's intent before collapsing its evaluation into a final, highly-penalized classification choice.
-
-## Inference Strategy
-
-The baseline inference provides a deterministic and reproducible heuristic classifier for evaluation:
-1.  **Tracker Signal Isolation**: Analyzes the taxonomy of active trackers, harshly penalizing domains flagged as "malicious" while applying graduated penalties for "ads" or "opaque" telemetry.
-2.  **Surface Signal Checks**: Decreases confidence scores based on high cookie thresholds or lack of HTTPS encryption.
-3.  **Semantic Deception Scoring**: Parses the visible policy text for conflicting directives, weighting severe clauses (e.g., "stored indefinitely") heavily, to calculate total heuristic risk.
-4.  **Classification Thresholds**: Triggers `mark_dangerous`, `mark_risky`, or `mark_safe` based on the compiled severity tier.
-
-## API Endpoints
+## API Documentation
 
 The environment is built on FastAPI and exposes the following OpenEnv endpoints:
+
 *   `POST /reset` — Accepts `task_id` (easy, medium, hard) and `seed` to initialize a new episode and generate the first observation.
 *   `POST /step` — Receives the agent's classification action and returns the subsequent observation, reward, and terminal state flag.
 *   `GET /state` — Retrieves the protected latent state of the current active episode for orchestrator monitoring.
 *   `GET /health` — Provides immediate system readiness validation for CI/CD or Docker health checks.
 
-## How to Run
+## Setup Instructions
 
 ### Local Setup
 
@@ -84,26 +84,18 @@ docker build -t privrl .
 docker run -p 7860:7860 privrl
 ```
 
-### Running Inference
-
-Once the server is active, execute the baseline inference agent:
-
-```bash
-python inference.py
-```
-
 ## Example Output
 
-The inference script perfectly adheres to standard hackathon logging constraints, ensuring reliable automated ingestion:
+The baseline inference script (`python inference.py`) strictly adheres to standard validation formats while providing LLM augments:
 
 ```text
 [START]
 [STEP] action=mark_safe reward=1.1500
+[ADVICE] This website employs minimal tracking infrastructure. Your data risk is negligible here.
 [STEP] action=mark_risky reward=0.5500
+[ADVICE] Significant third-party tracking cookies detected without sufficient privacy policy clarity. Exercise caution.
 [STEP] action=mark_safe reward=0.3000
-[STEP] action=mark_safe reward=0.3000
-[STEP] action=mark_risky reward=0.4000
-[STEP] action=mark_safe reward=1.1500
+[ADVICE] This website appears safe.
 [END]
 ```
 
@@ -111,28 +103,27 @@ The inference script perfectly adheres to standard hackathon logging constraints
 
 ```text
 PrivRL/
-├── README.md                 # Project documentation
+├── README.md                 # Documentation
 ├── openenv.yaml              # OpenEnv platform configuration metadata
 ├── Dockerfile                # Production container parameters
 ├── requirements.txt          # Frozen dependency graph
 ├── app.py                    # Core FastAPI backend router
-├── inference.py              # Baseline heuristic agent
+├── inference.py              # Baseline heuristic agent + OpenRouter LLM 
 └── env/                      
-    ├── environment.py        # Core generation, logic, and reward algorithms
+    ├── environment.py        # Core algorithm logic and reward shaping
     ├── models.py             # Strict Pydantic type schemas (API Contract)
-    └── dataset.py            # Taxonomy and baseline truth datasets
+    └── dataset.py            # Static baseline truth datasets
 ```
 
 ## Why This Project Stands Out
 
-PrivRL distinguishes itself through extreme technical rigor and fidelity to the OpenEnv design constraints:
-*   **Realism**: Trackers are organized against a real-world taxonomy (analytics vs malicious), mirroring actual browser intelligence operations. 
-*   **Robustness**: The API is 100% type-safe, bounds-checked, and actively resilient against degenerate input vectors—preventing system crashes during unsupervised validation tests.
-*   **Reproducibility**: The procedural content generation is cleanly bound to environment-level RNG seeding, guaranteeing perfectly deterministic traces across separate training containers.
-*   **Validation-Ready**: Successfully passes strict pre-validation checks including API contract enforcement, deterministic inference output formatting, and containerized health monitoring.
+PrivRL bridges a critical gap between security research and reinforcement learning orchestration through rigorous engineering:
+*   **Production Robustness**: The API is 100% type-safe, bounding inputs to prevent degenerate edge testing from crashing container processes during evaluation.
+*   **Procedural Integrity**: Procedural generation avoids trivial memorization architectures allowing genuine testing of generalization.
+*   **Extensible Integrations**: The system unifies a deterministic, heuristic-driven baseline agent with stochastic, real-world LLM semantic evaluations without blocking core RL training paths.
 
 ## Future Improvements
 
-*   **PPO/DQN Integrations**: Implementing `get_vector_obs()` natively allows the environment to pipe highly dimensioned tensor states directly into standard RLlib or StableBaselines3 algorithms.
-*   **Richer Network Signals**: Expanding the dataset to include simulated third-party cookie sync networks and canvas fingerprinting warnings.
-*   **Real-World Tracing**: Integrating a live web crawler to dynamically generate RL targets from live Tranco list domains rather than procedural pools.
+*   **Custom Environment Wrappers**: Adding direct integration pipelines via StableBaselines3 vectorized wrappers for multi-agent training scenarios.
+*   **Semantic Observation Enhancements**: Passing full DOM trees into observations alongside metadata instead of localized policy snippets.
+*   **Continuous Domain Crawling**: Dynamically hooking the procedural generation target pool to a live crawler indexing the Tranco Top 1M domains.
