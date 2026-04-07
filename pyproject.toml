@@ -10,8 +10,12 @@ dependencies = [
     "uvicorn",
     "pydantic",
     "websockets",
-    "openai"
+    "openai",
+    "openenv-core>=0.2.0"
 ]
+
+[project.scripts]
+server = "server.app:app"
 
 [build-system]
 requires = ["setuptools", "wheel"]
