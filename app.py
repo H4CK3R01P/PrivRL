@@ -27,7 +27,10 @@ from env.models import PrivRLAction
 
 class ResetRequest(BaseModel):
     task_id: str = "easy"
-    episode_id: Optional[str] = None
+    seed: int = 42
+
+
+env_instance = None
 
 
 class StepRequest(BaseModel):
@@ -76,47 +79,35 @@ async def list_tasks():
     """List all available tasks."""
     return {"tasks": PrivRLEnv.list_tasks()}
 
-
+env = PrivRLEnv()
 @app.post("/reset")
-async def reset(request: ResetRequest):
-    """Reset environment for a new episode."""
-    env = PrivRLEnv()
-    episode_id = request.episode_id or str(uuid.uuid4())
-    try:
-        obs = env.reset(task_id=request.task_id, episode_id=episode_id)
-    except ValueError as e:
-        return {"error": str(e)}
-    environments[episode_id] = env
-    return {
-        "episode_id": episode_id,
-        "observation": obs.model_dump(),
-    }
+def reset(request: Optional[ResetRequest] = None):
+    global env_instance
+
+    task_id = request.task_id if request else "easy"
+    seed = request.seed if request else 42
+
+    env_instance = PrivRLEnv()
+    obs = env_instance.reset(task_id=task_id, seed=seed)
+
+    return obs
 
 
 @app.post("/step")
-async def step(request: StepRequest, episode_id: str = ""):
-    """Execute a step in the environment."""
-    if episode_id not in environments:
-        return {"error": f"No active episode with id '{episode_id}'. Call /reset first."}
+def step(action: PrivRLAction):
+    global env_instance
 
-    env = environments[episode_id]
-    action = PrivRLAction(classification=request.classification)
-    obs, reward, done, info = env.step(action)
+    if env_instance is None:
+        return {"error": "No active episode. Call /reset first."}
 
-    response = {
-        "episode_id": episode_id,
-        "observation": obs.model_dump(),
+    obs, reward, done, info = env_instance.step(action)
+
+    return {
+        "observation": obs,
         "reward": reward,
         "done": done,
         "info": info,
     }
-
-    # Include final score if episode is done
-    if done:
-        response["final_score"] = info.get("final_score", env.get_normalized_score())
-        del environments[episode_id]
-
-    return response
 
 
 @app.get("/state")
