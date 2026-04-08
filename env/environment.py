@@ -848,20 +848,29 @@ def compute_reward(predicted: str, ground_truth: str,
 
 def normalize_score(total_reward: float, num_sites: int) -> float:
     """
-    Normalize cumulative reward to [0.0, 1.0] for OpenEnv grading.
+    Normalize cumulative reward to strictly (0, 1) for OpenEnv grading.
 
-    FIX: Bounds updated to reflect v4 reward design:
-      - Classification range:  [-1.0, +1.7]
-      - Step cost (2 steps):    -0.04 per site at minimum
-      - Net max per site:       1.7 - 0.02 = ~1.68 (conservative: use 1.7)
-      - Net min per site:      -1.0 - 0.04 = -1.04 (conservative: use -1.1)
+    Phase 2 requirement: score must be strictly 0 < score < 1.
+    We clamp to [0.01, 0.99] to guarantee this.
     """
     if num_sites == 0:
-        return 0.0
+        return 0.5  # neutral fallback, never 0.0
     min_possible = -1.1 * num_sites
     max_possible =  1.7 * num_sites
     raw = (total_reward - min_possible) / (max_possible - min_possible)
-    return round(max(0.0, min(1.0, raw)), 4)
+    # Clamp to strict open interval (0, 1)
+    return round(max(0.01, min(0.99, raw)), 4)
+
+
+def normalize_step_reward(raw_reward: float) -> float:
+    """
+    Normalize a single step reward from [-1.0, 1.7] to strictly (0, 1).
+
+    Phase 2 requires ALL reward values to be in (0, 1).
+    Maps: -1.0 -> 0.01, 0.0 -> 0.38, 1.0 -> 0.75, 1.7 -> 0.99
+    """
+    normalized = (raw_reward + 1.0) / 2.7  # maps [-1.0, 1.7] -> [0.0, 1.0]
+    return round(max(0.01, min(0.99, normalized)), 4)
 
 
 # =============================================================================
@@ -1075,10 +1084,10 @@ class PrivRLEnv:
             obs = PrivRLObservation(
                 cookies=0, trackers=[], https=False, privacy_policy="",
                 task_id=self._state.task_id, site_name="ERROR",
-                done=True, reward=-1.0,
+                done=True, reward=normalize_step_reward(-1.0),
                 message=f"Invalid action '{classification}'. Must be one of: {sorted(VALID_ACTIONS)}",
             )
-            return obs, -1.0, True, {
+            return obs, normalize_step_reward(-1.0), True, {
                 "error": f"Invalid action: {classification}",
                 "step_number": int(self._state.step_count),
                 "valid_actions": sorted(VALID_ACTIONS),
@@ -1138,7 +1147,7 @@ class PrivRLEnv:
                         f"Penalty: {TIMEOUT_PENALTY}. Episode terminated. Score: {score:.4f}"
                     ),
                 )
-                return obs, float(TIMEOUT_PENALTY), True, {
+                return obs, normalize_step_reward(TIMEOUT_PENALTY), True, {
                     "site_name": str(current_site["name"]),
                     "action_type": "timeout",
                     "reason": "step_limit_exceeded",
@@ -1173,7 +1182,7 @@ class PrivRLEnv:
                     policy_visible=self._policy_visible,
                 ),
             }
-            return obs, float(reward), False, info
+            return obs, normalize_step_reward(reward), False, info
 
         # ╔════════════════════════════════════════════╗
         # ║  CLASSIFICATION ACTIONS (end current site)  ║
@@ -1256,7 +1265,7 @@ class PrivRLEnv:
                 ),
             )
 
-        return obs, float(reward), bool(done), info
+        return obs, normalize_step_reward(reward), bool(done), info
 
     # ─────────────────────────────────────────────────────────────────────────
     # OpenEnv API: state property
@@ -1291,6 +1300,25 @@ class PrivRLEnv:
              "num_sites": len(TASKS[tid]["sites"])}
             for tid in ALL_TASK_IDS
         ]
+
+    def grade(self) -> dict:
+        """
+        Grade the current episode for OpenEnv Phase 2.
+
+        Returns a dict with:
+            score: float strictly in (0, 1)
+            task_id: str
+            sites_done: int
+            total_sites: int
+        """
+        score = self.get_normalized_score()
+        return {
+            "score": float(score),
+            "task_id": str(self._state.task_id),
+            "sites_done": int(self._state.sites_done),
+            "total_sites": int(self._state.total_sites),
+            "total_reward": float(self._state.total_reward),
+        }
 
     # ─────────────────────────────────────────────────────────────────────────
     # FIX 5: Vectorized Observation (Gym / StableBaselines3 compatible)

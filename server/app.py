@@ -102,12 +102,18 @@ def step(action: PrivRLAction):
 
     obs, reward, done, info = env_instance.step(action)
 
-    return {
+    response = {
         "observation": obs,
         "reward": reward,
         "done": done,
         "info": info,
     }
+
+    # Include score when episode ends (Phase 2 requirement)
+    if done:
+        response["score"] = env_instance.get_normalized_score()
+
+    return response
 
 
 @app.get("/state")
@@ -117,6 +123,15 @@ async def get_state(episode_id: str = ""):
         return {"error": f"No active episode with id '{episode_id}'."}
     env = environments[episode_id]
     return {"state": env.state.model_dump()}
+
+
+@app.post("/grade")
+def grade():
+    """Grade the current episode. Returns score in (0, 1)."""
+    global env_instance
+    if env_instance is None:
+        return {"error": "No active episode. Call /reset first."}
+    return env_instance.grade()
 
 
 # =============================================================================

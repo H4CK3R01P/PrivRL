@@ -2,7 +2,7 @@ name: PrivRL
 description: Multi-step POMDP environment for website privacy risk classification
 version: "4.0.0"
 
-entrypoint: app:app
+entrypoint: server.app:main
 
 runtime:
   language: python
@@ -14,6 +14,7 @@ api:
   step: /step
   state: /state
   health: /health
+  grade: /grade
 
 inference:
   script: inference.py
@@ -22,7 +23,10 @@ inference:
 tasks:
   - id: easy
     description: Obvious privacy indicators
+    grader: true
   - id: medium
     description: Mixed privacy signals requiring reasoning
+    grader: true
   - id: hard
     description: Deceptive or contradictory privacy patterns
+    grader: true
