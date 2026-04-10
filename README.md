@@ -88,15 +88,57 @@ docker run -p 7860:7860 privrl
 
 The baseline inference script (`python inference.py`) strictly adheres to standard validation formats while providing LLM augments:
 
+1.Output for stdout
 ```text
-[START]
-[STEP] action=mark_safe reward=1.1500
-[ADVICE] This website employs minimal tracking infrastructure. Your data risk is negligible here.
-[STEP] action=mark_risky reward=0.5500
-[ADVICE] Significant third-party tracking cookies detected without sufficient privacy policy clarity. Exercise caution.
-[STEP] action=mark_safe reward=0.3000
-[ADVICE] This website appears safe.
-[END]
+[START] task=easy env=PrivRL model=openai/gpt-4o-mini
+[STEP] step=1 action=mark_safe reward=0.80 done=false error=null
+[STEP] step=2 action=mark_risky reward=0.57 done=false error=null
+[STEP] step=3 action=mark_safe reward=0.48 done=false error=null
+[STEP] step=4 action=mark_safe reward=0.48 done=false error=null
+[STEP] step=5 action=mark_risky reward=0.52 done=false error=null
+[STEP] step=6 action=mark_safe reward=0.80 done=false error=null
+[STEP] step=7 action=mark_risky reward=0.57 done=false error=null
+[STEP] step=8 action=mark_risky reward=0.57 done=false error=null
+[STEP] step=9 action=mark_safe reward=0.48 done=false error=null
+[STEP] step=10 action=mark_safe reward=0.80 done=false error=null
+[STEP] step=11 action=mark_safe reward=0.80 done=false error=null
+[STEP] step=12 action=mark_safe reward=0.80 done=true error=null
+[END] success=true steps=12 score=0.6518 rewards=0.80,0.57,0.48,0.48,0.52,0.80,0.57,0.57,0.48,0.80,0.80,0.80
+[START] task=medium env=PrivRL model=openai/gpt-4o-mini
+[STEP] step=1 action=mark_safe reward=0.50 done=false error=null
+[STEP] step=2 action=mark_safe reward=0.48 done=false error=null
+[STEP] step=3 action=mark_safe reward=0.80 done=false error=null
+```
+
+2. Output for stdout with stderr
+```text
+[START] task=easy env=PrivRL model=openai/gpt-4o-mini
+[STEP] step=1 action=mark_safe reward=0.80 done=false error=null
+[ADVICE] It's important to enable HTTPS on your website to ensure secure data transmission and protect user privacy. Additionally, consider reviewing and updating your cookie and tracker policies to enhance user trust and compliance with privacy regulations.
+[STEP] step=2 action=mark_risky reward=0.57 done=false error=null
+[ADVICE] Since you have a relatively high number of cookies and no trackers, it's important to regularly review and manage your cookie settings to ensure your privacy is not compromised. Additionally, make sure to verify the hidden policy for any potential risks associated with the cookies you are accepting.
+[STEP] step=3 action=mark_safe reward=0.48 done=false error=null
+[ADVICE] This website appears safe. Normal browsing is fine.
+[STEP] step=4 action=mark_safe reward=0.48 done=false error=null
+[ADVICE] Ensure that your website uses HTTPS to encrypt data transmitted between users and your server, enhancing security and privacy. Additionally, consider implementing a clear cookie policy to inform users about cookie usage and obtain their consent.
+[STEP] step=5 action=mark_risky reward=0.52 done=false error=null
+[ADVICE] Ensure that your privacy policy is transparent and accessible to users, as it is currently hidden. Additionally, regularly review and update your cookie and tracker usage to minimize potential risks.
+[STEP] step=6 action=mark_safe reward=0.80 done=false error=null
+[ADVICE] It's important to enable HTTPS on your website to ensure secure data transmission and protect user privacy. Additionally, consider implementing a clear cookie and tracker policy to inform users about data collection practices.
+[STEP] step=7 action=mark_risky reward=0.57 done=false error=null
+[ADVICE] Your website has a high number of cookies and is not using HTTPS, which poses significant privacy and security risks for users. It is crucial to implement HTTPS and evaluate the necessity of the cookies in use to enhance user trust and protect their data.
+[STEP] step=8 action=mark_risky reward=0.57 done=false error=null
+[ADVICE] Since your site uses cookies but has no trackers and is secured with HTTPS, ensure that your cookie policy is transparent and compliant with privacy regulations. Regularly review and update your cookie consent mechanisms to maintain user trust and legal compliance.
+[STEP] step=9 action=mark_safe reward=0.48 done=false error=null
+[ADVICE] Ensure that your website maintains a clear and transparent privacy policy, even if it is currently hidden, to inform users about data handling practices and their rights. Regularly review and update your privacy practices to stay compliant with evolving regulations.
+[STEP] step=10 action=mark_safe reward=0.80 done=false error=null
+[ADVICE] Your website is secure with HTTPS and has no cookies or trackers, which is great for user privacy. However, ensure that your privacy policy is transparent and accessible to users for full compliance and trust.
+[STEP] step=11 action=mark_safe reward=0.80 done=false error=null
+[ADVICE] Ensure that your website maintains a clear and transparent privacy policy, even if it's currently hidden, to inform users about data collection practices. Regularly review and update your privacy measures to comply with regulations and enhance user trust.
+[STEP] step=12 action=mark_safe reward=0.80 done=true error=null
+[ADVICE] Ensure you regularly review and update your privacy settings, especially for cookies and trackers, to maintain your online security. Always prioritize using websites that implement HTTPS for secure data transmission.
+[END] success=true steps=12 score=0.6518 rewards=0.80,0.57,0.48,0.48,0.52,0.80,0.57,0.57,0.48,0.80,0.80,0.80
+
 ```
 
 ## Project Structure
